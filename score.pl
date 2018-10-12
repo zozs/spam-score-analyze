@@ -3,6 +3,7 @@
 use warnings;
 use strict;
 
+use DateTime;
 use Text::Table;
 
 my $mail_dir = "linus";
@@ -87,7 +88,7 @@ sub analyze_dir {
             next if $file =~ /^\.\.?$/;
             my $path = "$fulldir/$file";
             
-            my $mail = analyze_file($path);
+            my $mail = analyze_file($path, $file);
             if (%{$mail}) {
                 push @scores, $mail;
             } else {
@@ -100,11 +101,13 @@ sub analyze_dir {
 }
 
 sub analyze_file {
-    my ($file) = @_;
-    open my $h, "<", $file or die "Cannot open $file\n";
+    my ($path, $filename) = @_;
+    open my $h, "<", $path or die "Cannot open $path\n";
     my $found = 0;
     my $score;
+    my $datetime;
 
+    # Go through headers and find spam score.
     while (<$h>) {
         if (/^X-Spam-Status: (?:Yes|No), score=(?<score>-?\d+\.\d+) /) {
             $found++;
@@ -112,15 +115,25 @@ sub analyze_file {
         }
     }
 
+    # Parse UNIX timestamp in filename and convert to ISO-8859-1 date.
+    if ($filename =~ /^(?<epoch>\d+)\.M/) {
+        $datetime = DateTime->from_epoch(epoch => $+{epoch});
+    } else {
+        print "File: $path does not have a timestamp.\n";
+        return {};
+    }
+
     if ($found == 0) {
-        print "File: $file does not have a spam score.\n";
+        print "File: $path does not have a spam score.\n";
         return {};
     } elsif ($found > 1) {
-        print "File: $file has multiple spam scores!\n";
+        print "File: $path has multiple spam scores!\n";
         return {};
     }
 
     return {
-        score => $score
+        score => $score,
+        datetime => $datetime,
+        yearmonth => substr $datetime->date, 0, 7
     }
 }
