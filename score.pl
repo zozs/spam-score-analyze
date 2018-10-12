@@ -103,13 +103,12 @@ sub analyze_file {
     my ($file) = @_;
     open my $h, "<", $file or die "Cannot open $file\n";
     my $found = 0;
-    my $score = 0.0;
+    my $score;
 
-    while (my $line = <$h>) {
-        my @matches = $line =~ /^X-Spam-Status: (?:Yes|No), score=(-?\d+\.\d+) /;
-        if (scalar(@matches) > 0) {
+    while (<$h>) {
+        if (/^X-Spam-Status: (?:Yes|No), score=(?<score>-?\d+\.\d+) /) {
             $found++;
-            $score = $matches[0];
+            $score = $+{score};
         }
     }
 
