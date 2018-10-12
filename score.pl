@@ -63,8 +63,8 @@ sub divide {
     my ($threshold, @array) = @_;
     my $lt = 0;
     my $ge = 0;
-    foreach my $item (@array) {
-        if ($item < $threshold) {
+    foreach my $mail (@array) {
+        if ($mail->{score} < $threshold) {
             $lt++;
         } else {
             $ge++;
@@ -87,9 +87,9 @@ sub analyze_dir {
             next if $file =~ /^\.\.?$/;
             my $path = "$fulldir/$file";
             
-            my $score = analyze_file($path);
-            if (length $score) {
-                push @scores, $score;
+            my $mail = analyze_file($path);
+            if (%{$mail}) {
+                push @scores, $mail;
             } else {
                 $no_score++;
             }
@@ -108,8 +108,6 @@ sub analyze_file {
     while (my $line = <$h>) {
         my @matches = $line =~ /^X-Spam-Status: (?:Yes|No), score=(-?\d+\.\d+) /;
         if (scalar(@matches) > 0) {
-            #print "$file: Matching line: $line";
-            #print "=> " . $matches[0] . "\n";
             $found++;
             $score = $matches[0];
         }
@@ -117,11 +115,13 @@ sub analyze_file {
 
     if ($found == 0) {
         print "File: $file does not have a spam score.\n";
-        return '';
+        return {};
     } elsif ($found > 1) {
         print "File: $file has multiple spam scores!\n";
-        return '';
+        return {};
     }
 
-    return $score;
+    return {
+        score => $score
+    }
 }
