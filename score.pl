@@ -35,30 +35,27 @@ print "Spam discarded before delivery: " . scalar(@discard_mails) . "\n";
 
 my @mails = (@spam_mails, @ham_mails, @discard_mails);
 
-# First get number of mails below or above the threshold for all mails.
-my %alldiv = divide($required_score, @mails);
-
 # Now print statistics per month.
 my $grouped_mails = group_by_yearmonth(@mails);
 
 # TODO: add columns which shows what percentage of spams that are discarded before delivery.
 
 my $tb2 = Text::TabularDisplay->new;
-$tb2->columns(('', 'True positive', 'True negative', 'False positive', 'False negative', 'FNR'));
+$tb2->columns(('', 'True positive', 'True negative', 'False positive', 'False negative', 'FNR', 'Discard rate'));
 foreach my $ym (sort keys %{$grouped_mails}) {
     my %div = divide($required_score, @{$grouped_mails->{$ym}});
     my $fnr = sprintf("%6.2f %%", $div{slt} / ($div{slt} + $div{sge}) * 100);
-    $tb2->add(($ym, $div{sge}, $div{hlt}, $div{hge}, $div{slt}, $fnr));
+    my $dr = sprintf("%6.2f %%", $div{discarded} / ($div{sge} + $div{slt}) * 100);
+    $tb2->add(($ym, $div{sge}, $div{hlt}, $div{hge}, $div{slt}, $fnr, $dr));
 }
-my $fnr = $alldiv{slt} / ($alldiv{slt} + $alldiv{sge});
-$tb2->add(('Total', $alldiv{sge}, $alldiv{hlt}, $alldiv{hge}, $alldiv{slt}, sprintf("%6.2f %%", $fnr * 100)));
 print $tb2->render . "\n";
 
 sub divide {
     # Returns four counts, number of values less than threshold, and number of values
     # greater than or equal to the threshold for spam and hams respectively.
+    # Also count number of discarded mails as "discarded"
     my ($threshold, @array) = @_;
-    my %div;
+    my %div = (slt => 0, hlt => 0, sge => 0, hge => 0, discarded => 0);
     foreach my $mail (@array) {
         if ($mail->{score} < $threshold) {
             if ($mail->{spam}) {
@@ -73,7 +70,12 @@ sub divide {
                 $div{hge}++;
             }
         }
+
+        if ($mail->{discarded}) {
+            $div{discarded}++;
+        }
     }
+
     return %div;
 }
 
@@ -84,6 +86,7 @@ sub group_by_yearmonth {
     foreach my $mail (@array) {
         push @{$grouped{$mail->{yearmonth}}}, $mail;
     }
+    $grouped{Total} = \@array;
 
     return \%grouped;
 }
