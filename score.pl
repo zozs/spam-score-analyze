@@ -35,15 +35,8 @@ print "Spam discarded before delivery: " . scalar(@discard_mails) . "\n";
 
 my @mails = (@spam_mails, @ham_mails, @discard_mails);
 
-# First get number of mails below or above the threshold.
-my ($slt, $sge, $hlt, $hge) = divide($required_score, @mails);
-
-# Calculate false negatives and false positives for a given threshold.
-# Calculate FPR, FNR.
-my $fpr = $hge / ($hlt + $hge);
-my $fnr = $slt / ($slt + $sge);
-my $tpr = $sge / ($slt + $sge);
-my $tnr = $hlt / ($hlt + $hge);
+# First get number of mails below or above the threshold for all mails.
+my %alldiv = divide($required_score, @mails);
 
 # Now print statistics per month.
 my $grouped_mails = group_by_yearmonth(@mails);
@@ -53,37 +46,35 @@ my $grouped_mails = group_by_yearmonth(@mails);
 my $tb2 = Text::TabularDisplay->new;
 $tb2->columns(('', 'True positive', 'True negative', 'False positive', 'False negative', 'FNR'));
 foreach my $ym (sort keys %{$grouped_mails}) {
-    my ($gslt, $gsge, $ghlt, $ghge) = divide($required_score, @{$grouped_mails->{$ym}});
-    my $gfnr = sprintf("%6.2f %%", $gslt / ($gslt + $gsge) * 100);
-    $tb2->add(($ym, $gsge, $ghlt, $ghge, $gslt, $gfnr));
+    my %div = divide($required_score, @{$grouped_mails->{$ym}});
+    my $fnr = sprintf("%6.2f %%", $div{slt} / ($div{slt} + $div{sge}) * 100);
+    $tb2->add(($ym, $div{sge}, $div{hlt}, $div{hge}, $div{slt}, $fnr));
 }
-$tb2->add(('Total', $sge, $hlt, $hge, $slt, sprintf("%6.2f %%", $fnr * 100)));
+my $fnr = $alldiv{slt} / ($alldiv{slt} + $alldiv{sge});
+$tb2->add(('Total', $alldiv{sge}, $alldiv{hlt}, $alldiv{hge}, $alldiv{slt}, sprintf("%6.2f %%", $fnr * 100)));
 print $tb2->render . "\n";
 
 sub divide {
     # Returns four counts, number of values less than threshold, and number of values
     # greater than or equal to the threshold for spam and hams respectively.
     my ($threshold, @array) = @_;
-    my $slt = 0;
-    my $sge = 0;
-    my $hlt = 0;
-    my $hge = 0;
+    my %div;
     foreach my $mail (@array) {
         if ($mail->{score} < $threshold) {
             if ($mail->{spam}) {
-                $slt++;
+                $div{slt}++;
             } else {
-                $hlt++;
+                $div{hlt}++;
             }
         } else {
             if ($mail->{spam}) {
-                $sge++;
+                $div{sge}++;
             } else {
-                $hge++;
+                $div{hge}++;
             }
         }
     }
-    return ($slt, $sge, $hlt, $hge);
+    return %div;
 }
 
 sub group_by_yearmonth {
@@ -154,6 +145,7 @@ sub analyze_file {
     return {
         score => $score,
         spam => $is_spam,
+        discarded => 0,
         datetime => $datetime,
         yearmonth => substr $datetime->date, 0, 7
     }
@@ -212,6 +204,7 @@ sub analyze_log_file {
                 push @mails, {
                     score => 10.0, # TODO: use real score instead of this threshold?
                     spam => 1,
+                    discarded => 1,
                     datetime => $datetime,
                     yearmonth => substr $datetime->date, 0, 7
                 };
