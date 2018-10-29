@@ -68,6 +68,7 @@ sub divide {
                 $div{sge}++;
             } else {
                 $div{hge}++;
+                print "False positive: " . $mail->{filename} . "\n";
             }
         }
 
@@ -150,6 +151,7 @@ sub analyze_file {
         spam => $is_spam,
         discarded => 0,
         datetime => $datetime,
+        filename => $filename,
         yearmonth => substr $datetime->date, 0, 7
     }
 }
@@ -188,7 +190,7 @@ sub analyze_log_file {
         if (/\(discard action\)$/) {
             # Discarded spam message because score is high!
             my $datetime;
-            if (/^(?<year>\d{4})-(?<month>\d{2})-(?<day>\d{2})T /) {
+            if (/^(?<year>\d{4})-(?<month>\d{2})-(?<day>\d{2})T/) {
                 $datetime = DateTime->new(
                     year => $+{year},
                     month => $+{month},
