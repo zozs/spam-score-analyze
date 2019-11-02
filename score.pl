@@ -8,7 +8,7 @@ use DateTime::Format::Strptime;
 use Text::TabularDisplay;
 
 my $mail_dir = "linus";
-my @ham_dirs = qw(. .Reports .Social .Archive .Archive.2018);
+my @ham_dirs = qw(. .Reports .Social .Archive .Archive.2018 .Archive.2019);
 my @spam_dirs = qw(.Junk);
 my $maillog_dir = "maillog";
 
@@ -49,6 +49,37 @@ foreach my $ym (sort keys %{$grouped_mails}) {
     $tb2->add(($ym, $div{sge}, $div{hlt}, $div{hge}, $div{slt}, $fnr, $dr));
 }
 print $tb2->render . "\n";
+
+# TODO: fix better, this is just PoC
+# Print the number of different spam destination addresses by counting Delivered-To headers.
+# (currently this only counts non-discarded e-mails)
+my %destinations;
+for my $mail (@mails) {
+    if ($mail->{spam}) {
+        for my $destination (@{$mail->{delivered}}) {
+            $destinations{$destination}++;
+        }
+    }
+}
+
+# Now walk through all mails again, this time counting the number of *ham* messages
+# delivered to the spam-destinations above. This way we can get the distribution between
+# spam and ham for certain destinations.
+my %ham_destinations;
+for my $mail (@mails) {
+    if (!$mail->{spam}) {
+        for my $destination (@{$mail->{delivered}}) {
+            if (exists($destinations{$destination})) {
+                $ham_destinations{$destination}++;
+            }
+        }
+    }
+}
+
+print "Spam / Ham: destination address\n";
+for my $destination (sort { $destinations{$a} <=> $destinations{$b} } keys %destinations) {
+    print "$destinations{$destination} / " . ($ham_destinations{$destination} // 0) . ": $destination\n";
+}
 
 sub divide {
     # Returns four counts, number of values less than threshold, and number of values
@@ -121,15 +152,22 @@ sub analyze_dir {
 sub analyze_file {
     my ($path, $filename, $is_spam) = @_;
     open my $h, "<", $path or die "Cannot open $path\n";
-    my $found = 0;
+    my $found_delivered = 0;
+    my $found_scores = 0;
+    my @delivered;
     my $score;
     my $datetime;
 
-    # Go through headers and find spam score.
+    # Go through headers and find spam score and 
     while (<$h>) {
         if (/^X-Spam-Status: (?:Yes|No), score=(?<score>-?\d+\.\d+) /) {
-            $found++;
+            $found_scores++;
             $score = $+{score};
+        }
+        if (/^Delivered-To: (?<user>\S+)@(?<domain>\S+)/) {
+            # TODO: add check so that we only pick out supported domains here.
+            $found_delivered++;
+            push @delivered, $+{user} . "@" . $+{domain};
         }
     }
 
@@ -141,15 +179,20 @@ sub analyze_file {
         return {};
     }
 
-    if ($found != 1) {
-        print "File: $path has $found spam scores.\n";
+    if ($found_scores != 1) {
+        print "File: $path has $found_scores spam scores.\n";
         return {};
+    }
+
+    if ($found_delivered != 1) {
+        print "File: $path has $found_delivered Delivered-To headers.\n";
     }
 
     return {
         score => $score,
         spam => $is_spam,
         discarded => 0,
+        delivered => \@delivered,
         datetime => $datetime,
         filename => $filename,
         yearmonth => substr $datetime->date, 0, 7
@@ -187,6 +230,9 @@ sub analyze_log_file {
     # prints log messages using ISO 8601. If it isn't, fall back to MMM DD numbering and assume
     # year of 2018.
     while (<$h>) {
+        # 2018-10-26T17:12:00.271Z imap spampd[55849]: identified spam <9bf701d46d3e$710eeaf0$9acf4af3@PaulWilson> (18.41/4.00) from <PaulWilson@pinebrook-farms.com> for <user@domain.se> in 3.07s, 11524 bytes.
+        # TODO: look for this line instead and see if it matches the discard action count below :)
+        
         if (/\(discard action\)$/) {
             # Discarded spam message because score is high!
             my $datetime;
@@ -209,6 +255,7 @@ sub analyze_log_file {
                 push @mails, {
                     score => 10.0, # TODO: use real score instead of this threshold?
                     spam => 1,
+                    delivered => [],
                     discarded => 1,
                     datetime => $datetime,
                     yearmonth => substr $datetime->date, 0, 7
