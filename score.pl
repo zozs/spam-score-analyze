@@ -7,10 +7,10 @@ use DateTime;
 use DateTime::Format::Strptime;
 use Text::TabularDisplay;
 
-my $mail_dir = "linus";
+my $mail_dir = "testdata/linus";
 my @ham_dirs = qw(. .Reports .Social .Archive .Archive.2018 .Archive.2019);
 my @spam_dirs = qw(.Junk);
-my $maillog_dir = "maillog";
+my $maillog_dir = "testdata/logs";
 
 if (scalar(@ARGV) != 1) {
     print "usage: score.pl <threshold>\n";
@@ -38,15 +38,13 @@ my @mails = (@spam_mails, @ham_mails, @discard_mails);
 # Now print statistics per month.
 my $grouped_mails = group_by_yearmonth(@mails);
 
-# TODO: add columns which shows what percentage of spams that are discarded before delivery.
-
 my $tb2 = Text::TabularDisplay->new;
-$tb2->columns(('', 'True positive', 'True negative', 'False positive', 'False negative', 'FNR', 'Discard rate'));
+$tb2->columns(('', 'True positive', 'True negative', 'False positive', 'False negative', 'Discarded', 'FNR', 'Discard rate'));
 foreach my $ym (sort keys %{$grouped_mails}) {
     my %div = divide($required_score, @{$grouped_mails->{$ym}});
     my $fnr = sprintf("%6.2f %%", $div{slt} / ($div{slt} + $div{sge}) * 100);
     my $dr = sprintf("%6.2f %%", $div{discarded} / ($div{sge} + $div{slt}) * 100);
-    $tb2->add(($ym, $div{sge}, $div{hlt}, $div{hge}, $div{slt}, $fnr, $dr));
+    $tb2->add(($ym, $div{sge}, $div{hlt}, $div{hge}, $div{slt}, $div{discarded}, $fnr, $dr));
 }
 print $tb2->render . "\n";
 
@@ -244,7 +242,7 @@ sub analyze_log_file {
                 );
             } elsif (/^(?<bsddate>\w+  ?\d+) \d{2}:\d{2}:\d{2}/) {
                 my $parser = DateTime::Format::Strptime->new(pattern => '%B %d %Y');
-                $datetime = $parser->parse_datetime($+{bsddate} . " 2018");
+                $datetime = $parser->parse_datetime($+{bsddate} . " 2018"); # certain old logs did not have year.
             }
 
             if (!$datetime) {
