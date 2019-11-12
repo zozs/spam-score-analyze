@@ -255,16 +255,16 @@ sub partition {
     foreach my $mail (@{$array}) {
         if ($mail->{score} < $threshold) {
             if ($mail->{spam}) {
-                $div{slt}++;
+                $div{slt}++;  # false negative
             } else {
-                $div{hlt}++;
+                $div{hlt}++;  # true negative
             }
         } else {
             if ($mail->{spam}) {
-                $div{sge}++;
+                $div{sge}++;  # true positive
             } else {
-                $div{hge}++;
-                print "False positive: " . $mail->{filename} . "\n";
+                $div{hge}++;  # false positive
+                say "False positive: " . $mail->{filename};
             }
         }
 
