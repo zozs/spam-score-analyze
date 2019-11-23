@@ -61,8 +61,19 @@ sub aggregate_stats {
         $stats->{$yearmonth} = $part;
     }
 
+    # Then count destination address by checking Delivered-To headers.
+    # Count spam and ham separately.
+    my $destinations = {};
+    for my $mail (@mails) {
+        my $class = $mail->{spam} ? "spam" : "ham";
+        for my $destination (@{$mail->{delivered}}) {
+            $destinations->{$destination}->{$class}++;
+        }
+    }
+
     return {
-        'stats' => $stats
+        'yearmonth' => $stats,
+        'destinations' => $destinations
     }
 }
 
@@ -172,7 +183,12 @@ sub analyse_mail {
         return {};
     }
 
-    if ($found_scores != 1) {
+    if ($found_scores == 0) {
+        #say "File: $filepath has no spam score.";
+        return {};
+    }
+
+    if ($found_scores > 1) {
         say "File: $filepath has $found_scores spam scores.";
         return {};
     }
