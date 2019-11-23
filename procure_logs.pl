@@ -176,7 +176,7 @@ sub analyse_mail {
     close($fh);
 
     # Parse UNIX timestamp in filename and convert to ISO-8859-1 date.
-    if (my $epoch = $file =~ /^(\d+)\.M/) {
+    if (my ($epoch) = $file =~ /^(\d+)\.M/) {
         $datetime = DateTime->from_epoch(epoch => $epoch);
     } else {
         say "File: $filepath does not have a timestamp.";
