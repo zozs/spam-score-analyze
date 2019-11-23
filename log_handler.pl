@@ -7,8 +7,6 @@
 # The /var/log/maillog must be handled separately, since it is not constant like the other files,
 # thus we always copy the latest version and use it as-is.
 
-# TODO: take date from first line and use as suffix of log in destdir.
-
 use strict;
 use warnings;
 use v5.10;

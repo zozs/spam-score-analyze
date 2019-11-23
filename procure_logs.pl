@@ -38,8 +38,23 @@ my %domains = (
 # the output file where to store procured data (single file)
 my $destfile =  "testdata/procured_data.json";
 
-# the score that your imap server/sieve is configured to treat as spam.
+# the score that your imap server/sieve is configured to treat as spam,
+# as well as the score which we consider as discard.
 my $required_score = 4.0;
+my $discard_score = 10.0;
+my $not_discard_before = DateTime->new(
+    year => 2018,
+    month => 8,
+    day => 30,
+    hour => 18,
+    minute => 40,
+    second => 30
+);
+# Why?
+# Ugly hack incoming:
+# Before this e-mail in 2018, no e-mails were discarded regardless of score,
+# so add a specific check for this later on when the date above is needed.
+# Aug 30 18:40:31 imap spampd[47664]: identified spam <E4CA5DC67C47D42E541F57DD9AE0B5D5@gtwadncdx.net> (16.59/4.00) from <bkxmsoab@gtwadncdx.net> for <user.domain> in 1.28s, 7093 bytes.
 
 # constants
 my $IS_HAM = 0;
@@ -93,35 +108,41 @@ sub analyse_log {
     # year of 2018.
     my @mails;
     while (<$fh>) {
-        # 2018-10-26T17:12:00.271Z imap spampd[55849]: identified spam <9bf701d46d3e$710eeaf0$9acf4af3@PaulWilson> (18.41/4.00) from <PaulWilson@pinebrook-farms.com> for <user@domain.se> in 3.07s, 11524 bytes.
-        # TODO: look for this line instead and see if it matches the discard action count below :)
-        
-        if (/\(discard action\)$/) {
-            # Discarded spam message because score is high!
-            my $datetime;
-            if (/^(?<year>\d{4})-(?<month>\d{2})-(?<day>\d{2})T/) {
-                $datetime = DateTime->new(
-                    year => $+{year},
-                    month => $+{month},
-                    day => $+{day}
-                );
-            } elsif (/^(?<bsddate>\w+  ?\d+) \d{2}:\d{2}:\d{2}/) {
-                my $parser = DateTime::Format::Strptime->new(pattern => '%B %d %Y');
-                $datetime = $parser->parse_datetime($+{bsddate} . " 2018"); # certain old logs did not have year.
-            }
+        if (/identified spam (?:<\S*>|\(unknown\)) \((?<score>\d+\.\d+)\/\d+\.\d+\) from <\S*> for <(?<destination>\S+)>/) {
+            my $score = $+{score};
+            # one line can contain multiple destinations.
+            my @destinations = split('>,<', $+{destination});
+            if ($score >= $discard_score) {
+                # Discarded spam message because score is high!
+                my $datetime;
+                if (/^(?<year>\d{4})-(?<month>\d{2})-(?<day>\d{2})T/) {
+                    $datetime = DateTime->new(
+                        year => $+{year},
+                        month => $+{month},
+                        day => $+{day}
+                    );
+                } elsif (/^(?<bsddate>\w+  ?\d+) (?<time>\d{2}:\d{2}:\d{2})/) {
+                    my $parser = DateTime::Format::Strptime->new(pattern => '%B %d %Y %H:%M:%S');
+                    $datetime = $parser->parse_datetime($+{bsddate} . " 2018 " . $+{time}); # certain old logs did not have year.
+                }
 
-            if (!$datetime) {
-                say "Parsing of date failed for line: ";
-                say;
-            } else {
-                push @mails, {
-                    score => 10.0, # TODO: use real score instead of this threshold?
-                    spam => 1,
-                    delivered => [],
-                    discarded => 1,
-                    datetime => $datetime,
-                    yearmonth => substr $datetime->date, 0, 7
-                };
+                if (!$datetime) {
+                    say "Parsing of date failed for line: ";
+                    say;
+                } elsif ($datetime < $not_discard_before) {
+                    # ignored due to before discarding was enabled.
+                } else {
+                    foreach my $destination (@destinations) {
+                        push @mails, {
+                            score => $score,
+                            spam => 1,
+                            delivered => [$destination],
+                            discarded => 1,
+                            datetime => $datetime,
+                            yearmonth => substr $datetime->date, 0, 7
+                        };
+                    }
+                }
             }
         }
     }
