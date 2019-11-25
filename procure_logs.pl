@@ -16,8 +16,8 @@ use JSON::MaybeXS qw(encode_json decode_json);
 
 # the directories where mail logs and actual mails are stored.
 # for maildir, assume "maildir" format for mail storage.
-my $logdir = "testdata/logs";
-my $maildir = "testdata/linus";
+my $logdir = "/root/.spamscoreanalyze/logs";
+my $maildir = "/var/vmail/linus";
 
 # the mail folders that we should treat as spam or ham respectively.
 # other folders are ignored.
@@ -36,7 +36,7 @@ my %domains = (
 );
 
 # the output file where to store procured data (single file)
-my $destfile =  "testdata/procured_data.json";
+my $destfile =  "/var/www/htdocs/spamstats/spamstats.json";
 
 # the score that your imap server/sieve is configured to treat as spam,
 # as well as the score which we consider as discard.
