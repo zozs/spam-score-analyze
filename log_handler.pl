@@ -135,7 +135,7 @@ sub find_new_logs {
     my @new;
     foreach my $file (@files) {
         next if $file =~ /^\.\.?$/;
-        next if $file !~ /\.gz$/; # we only care about .gz-files in this stage.
+        next if $file !~ /^maillog.*\.gz$/; # we only care about .gz-files in this stage.
         my $path = "$logdir/$file";
 
         my $sha = Digest::SHA->new(512);
@@ -144,9 +144,6 @@ sub find_new_logs {
 
         if (!exists($existing->{$digest})) {
             push @new, $path;
-        } else {
-            # DEBUG: can probably be removed.
-            #say "$path already exists as " . $existing->{$digest};
         }
     }
     return \@new;
