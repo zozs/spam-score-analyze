@@ -13,17 +13,21 @@ use v5.10;
 
 use Digest::SHA;
 use File::Copy;
+use File::Path qw(make_path);
 use IO::Zlib;
 
 # The destination where we'll store cached copies of all logs.
-my $destdir = "testdata/logs";
+my $destdir = "/root/.spamscoreanalyze/logs";
 
 # The source dir where we look for logs (typically /var/log)
-my $sourcedir = "testdata/varlog";
+my $sourcedir = "/var/log";
 
 main();
 
 sub main {
+    # start with creating the destination directory if it does not exist.
+    make_path($destdir, { mode => 0770 });
+
     # first load hashes of already existing log files.
     my $existing = analyse_existing_logs($destdir);
 
