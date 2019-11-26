@@ -33,9 +33,9 @@ sub spam_destinations {
     my $tb = Text::TabularDisplay->new;
     $tb->columns('Destination', 'Spam', 'Ham');
 
-    for my $destination (sort { ($destinations->{$a}->{spam} // 0 ) <=> ($destinations->{$b}->{spam} // 0) } keys %$destinations) {
-        next unless $destinations->{$destination}->{spam};
-        $tb->add($destination, $destinations->{$destination}->{spam}, $destinations->{$destination}->{ham} // 0);
+    for my $destination (sort { ($a->{spam} // 0 ) <=> ($b->{spam} // 0) } @$destinations) {
+        next unless $destination->{spam};
+        $tb->add($destination->{email}, $destination->{spam}, $destination->{ham} // 0);
     }
     say $tb->render;
 }
@@ -45,11 +45,10 @@ sub stats_per_month {
 
     my $tb = Text::TabularDisplay->new;
     $tb->columns('', 'True positive', 'True negative', 'False positive', 'False negative', 'Discarded', 'FNR', 'Discard rate');
-    foreach my $ym (sort keys %{$stats->{yearmonth}}) {
-        my %div = %{$stats->{yearmonth}->{$ym}};
-        my $fnr = sprintf("%6.2f %%", $div{slt} / ($div{slt} + $div{sge}) * 100);
-        my $dr = sprintf("%6.2f %%", $div{discarded} / ($div{sge} + $div{slt}) * 100);
-        $tb->add(($ym, $div{sge}, $div{hlt}, $div{hge}, $div{slt}, $div{discarded}, $fnr, $dr));
+    foreach my $ym (sort { $a->{yearmonth} cmp $b->{yearmonth} } @{$stats->{yearmonths}}) {
+        my $fnr = sprintf("%6.2f %%", $ym->{slt} / ($ym->{slt} + $ym->{sge}) * 100);
+        my $dr = sprintf("%6.2f %%", $ym->{discarded} / ($ym->{sge} + $ym->{slt}) * 100);
+        $tb->add(($ym->{yearmonth}, $ym->{sge}, $ym->{hlt}, $ym->{hge}, $ym->{slt}, $ym->{discarded}, $fnr, $dr));
     }
     say $tb->render;
 }

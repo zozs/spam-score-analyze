@@ -68,12 +68,12 @@ sub aggregate_stats {
     # Start by grouping stats per month.
     my $grouped_mails = group_by_yearmonth(@mails);
 
-    my $stats = {};
-
+    my @yearmonths;
     foreach my $yearmonth (sort keys %{$grouped_mails}) {
         # for each yearmonth, start by partition into spam and ham and count discards.
         my $part = partition($required_score, $grouped_mails->{$yearmonth});
-        $stats->{$yearmonth} = $part;
+        $part->{yearmonth} = $yearmonth;
+        push @yearmonths, $part;
     }
 
     # Then count destination address by checking Delivered-To headers.
@@ -83,12 +83,19 @@ sub aggregate_stats {
         my $class = $mail->{spam} ? "spam" : "ham";
         for my $destination (@{$mail->{delivered}}) {
             $destinations->{$destination}->{$class}++;
+            $destinations->{$destination}->{email} = $destination;
         }
     }
 
+    # Convert hash to array instead, since it is a more elegant JSON representation.
+    my @destination_array;
+    for my $destination (keys %$destinations) {
+        push @destination_array, $destinations->{$destination};
+    }
+
     return {
-        'yearmonth' => $stats,
-        'destinations' => $destinations
+        'yearmonths' => \@yearmonths,
+        'destinations' => \@destination_array
     }
 }
 
