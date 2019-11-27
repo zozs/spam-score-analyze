@@ -1,7 +1,11 @@
 module Main exposing (main)
 
+import Bootstrap.CDN as CDN
+import Bootstrap.Grid as Grid
+import Bootstrap.Table as Table
 import Browser
 import Html exposing (Html, div, text, pre, ul, li, table, tr, td, th)
+import Html.Attributes
 import Http
 import Json.Decode exposing (Decoder, field, int, map2, map3, map6, maybe, oneOf, list, string, succeed)
 import Round
@@ -64,78 +68,92 @@ subscriptions model =
 
 -- VIEW
 
-destinationRowView : Destination -> Html Msg
+tableStyle = [ Table.striped, Table.hover, Table.small ]
+
+rightAlign = Table.cellAttr <| Html.Attributes.style "text-align" "right"
+
+formatPercentage : Int -> Int -> String
+formatPercentage num denom = (Round.round 2 (toFloat num / toFloat denom * 100) ++ "\u{00A0}%")
+
+
+destinationRowView : Destination -> Table.Row Msg
 destinationRowView d =
-  tr []
-    [ td [] [ text d.email ]
-    , td [] [ text (String.fromInt d.spam ) ]
-    , td [] [ text (String.fromInt d.ham ) ]
+  Table.tr []
+    [ Table.td [] [ text d.email ]
+    , Table.td [ rightAlign ] [ text (String.fromInt d.spam ) ]
+    , Table.td [ rightAlign ] [ text (String.fromInt d.ham ) ]
     ]
 
-destinationsTableView : List (Html Msg) -> Html Msg
+destinationsTableView : List (Table.Row Msg) -> Html Msg
 destinationsTableView dsts =
-  dsts
-    |> (++)
-      [ tr []
-        [ th [] [ text "Email" ]
-        , th [] [ text "Spam" ]
-        , th [] [ text "Ham" ]
+  Table.table
+    { options = tableStyle
+    , thead = Table.simpleThead
+        [ Table.th [] [ text "Email" ]
+        , Table.th [ rightAlign ] [ text "Spam" ]
+        , Table.th [ rightAlign ] [ text "Ham" ]
         ]
-      ]
-    |> table []
+    , tbody = Table.tbody [] dsts
+    }
 
-yearMonthRowView : YearMonth -> Html Msg
+yearMonthRowView : YearMonth -> Table.Row Msg
 yearMonthRowView ym =
-  tr []
-    [ td [] [ text ym.yearMonth ]
-    , td [] [ text (String.fromInt ym.sge ) ]
-    , td [] [ text (String.fromInt ym.hlt ) ]
-    , td [] [ text (String.fromInt ym.hge ) ]
-    , td [] [ text (String.fromInt ym.slt ) ]
-    , td [] [ text (String.fromInt ym.discarded ) ]
-    , td [] [ text (Round.round 2 (toFloat ym.slt / toFloat (ym.slt + ym.sge) * 100) ++ " %") ]
-    , td [] [ text (Round.round 2 (toFloat ym.discarded / toFloat (ym.sge + ym.slt) * 100) ++ " %") ]
+  Table.tr []
+    [ Table.td [] [ text ym.yearMonth ]
+    , Table.td [ rightAlign ] [ text <| String.fromInt ym.hlt ]
+    , Table.td [ rightAlign ] [ text <| String.fromInt ym.sge ]
+    , Table.td [ rightAlign ] [ text <| String.fromInt ym.hge ]
+    , Table.td [ rightAlign ] [ text <| String.fromInt ym.slt ]
+    , Table.td [ rightAlign ] [ text <| String.fromInt ym.discarded ]
+    , Table.td [ rightAlign ] [ text <| formatPercentage ym.slt (ym.slt + ym.sge) ]
+    , Table.td [ rightAlign ] [ text <| formatPercentage ym.discarded (ym.sge + ym.slt) ]
     ]
 
-yearMonthsTableView : List (Html Msg) -> Html Msg
+yearMonthsTableView : List (Table.Row Msg) -> Html Msg
 yearMonthsTableView dsts =
-  dsts
-    |> (++)
-      [ tr []
-        [ th [] []
-        , th [] [ text "True positive" ]
-        , th [] [ text "True negative" ]
-        , th [] [ text "False positive" ]
-        , th [] [ text "True positive" ]
-        , th [] [ text "Discarded" ]
-        , th [] [ text "FNR" ]
-        , th [] [ text "Discard rate" ]
+  Table.table
+    { options = tableStyle
+    , thead = Table.simpleThead
+        [ Table.th [] []
+        , Table.th [ rightAlign ] [ text "True positive" ]
+        , Table.th [ rightAlign ] [ text "True negative" ]
+        , Table.th [ rightAlign ] [ text "False positive" ]
+        , Table.th [ rightAlign ] [ text "True positive" ]
+        , Table.th [ rightAlign ] [ text "Discarded" ]
+        , Table.th [ rightAlign ] [ text "FNR" ]
+        , Table.th [ rightAlign ] [ text "Discard rate" ]
         ]
-      ]
-    |> table []
-
+    , tbody = Table.tbody [] dsts
+    }
 
 view : Model -> Html Msg
 view model =
-  case model of
-    Failure err ->
-      text ("Something went wrong when loading :(. Got error: " ++ err)
-    
-    Loading ->
-      text "Fetching stats"
-    
-    Success stats ->
-      div []
-        [ stats.destinations
-            |> List.sortBy .spam
-            |> List.reverse
-            |> List.map destinationRowView
-            |> destinationsTableView
-        , stats.yearmonths
-            |> List.sortBy .yearMonth
-            |> List.map yearMonthRowView
-            |> yearMonthsTableView
-        ]
+  Grid.container []
+    [ CDN.stylesheet
+    , case model of
+      Failure err ->
+        text ("Something went wrong when loading :(. Got error: " ++ err)
+      
+      Loading ->
+        text "Fetching stats"
+      
+      Success stats ->
+        Grid.row []
+          [Grid.col []
+            [ stats.destinations
+                |> List.sortBy .spam
+                |> List.reverse
+                |> List.map destinationRowView
+                |> destinationsTableView
+            ]
+          , Grid.col []
+            [ stats.yearmonths
+                |> List.sortBy .yearMonth
+                |> List.map yearMonthRowView
+                |> yearMonthsTableView
+            ]
+          ]
+    ]
 
 
 -- HTTP
