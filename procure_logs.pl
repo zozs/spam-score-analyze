@@ -88,10 +88,7 @@ sub aggregate_stats {
     }
 
     # Convert hash to array instead, since it is a more elegant JSON representation.
-    my @destination_array;
-    for my $destination (keys %$destinations) {
-        push @destination_array, $destinations->{$destination};
-    }
+    my @destination_array = map { $destinations->{$_} } keys %$destinations;
 
     return {
         'yearmonths' => \@yearmonths,
