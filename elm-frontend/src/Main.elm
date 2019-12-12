@@ -101,9 +101,9 @@ yearMonthRowView ym =
   Table.tr []
     [ Table.td [] [ text ym.yearMonth ]
     , Table.td [ rightAlign ] [ text <| String.fromInt ym.hlt ]
-    , Table.td [ rightAlign ] [ text <| String.fromInt ym.sge ]
     , Table.td [ rightAlign ] [ text <| String.fromInt ym.hge ]
     , Table.td [ rightAlign ] [ text <| String.fromInt ym.slt ]
+    , Table.td [ rightAlign ] [ text <| String.fromInt ym.sge ]
     , Table.td [ rightAlign ] [ text <| String.fromInt ym.discarded ]
     , Table.td [ rightAlign ] [ text <| formatPercentage ym.slt (ym.slt + ym.sge) ]
     , Table.td [ rightAlign ] [ text <| formatPercentage ym.discarded (ym.sge + ym.slt) ]
@@ -115,9 +115,9 @@ yearMonthsTableView dsts =
     { options = tableStyle
     , thead = Table.simpleThead
         [ Table.th [] []
-        , Table.th [ rightAlign ] [ text "True positive" ]
         , Table.th [ rightAlign ] [ text "True negative" ]
         , Table.th [ rightAlign ] [ text "False positive" ]
+        , Table.th [ rightAlign ] [ text "False negative" ]
         , Table.th [ rightAlign ] [ text "True positive" ]
         , Table.th [ rightAlign ] [ text "Discarded" ]
         , Table.th [ rightAlign ] [ text "FNR" ]
