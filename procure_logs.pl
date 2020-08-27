@@ -21,18 +21,13 @@ my $maildir = "/var/vmail/linus";
 
 # the mail folders that we should treat as spam or ham respectively.
 # other folders are ignored.
-my @ham_dirs = qw(. .Reports .Social .Archive .Archive.2018 .Archive.2019);
+my @ham_dirs = qw(. .Reports .Social .Archive .Archive.2018 .Archive.2019 .Archive.2020);
 my @spam_dirs = qw(.Junk);
 
 # the domains that we care about (used to determine valid Delivered-To headers)
 # 1 is not important.
 my %domains = (
     'linuskarlsson.se' => 1,
-    'imaginar.se' => 1,
-    'cryptosec.se' => 1,
-    'zozs.se' => 1,
-    'labqueue.com' => 1,
-    'labqueue.org' => 1,
 );
 
 # the output file where to store procured data (single file)
@@ -189,7 +184,7 @@ sub analyse_mail {
         if (/^Delivered-To: (?<user>\S+)@(?<domain>\S+)/) {
             # check so that we only pick out supported domains here.
             # this useful since some e-mails have multiple headers, e.g. mailing lists
-            if (exists($domains{$+{domain}})) {
+            if (exists($domains{lc($+{domain})})) {
                 $found_delivered++;
                 push @delivered, $+{user} . "@" . $+{domain};
             } else {
